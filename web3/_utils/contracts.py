@@ -32,6 +32,8 @@ from hexbytes import (
 )
 
 from web3._utils.abi import (
+    abi_element_deserializer,
+    abi_element_serializer,
     abi_to_signature,
     check_if_arguments_can_be_encoded,
     filter_by_argument_count,
@@ -166,9 +168,12 @@ def find_matching_fn_abi(
         raise ValidationError(message)
 
 
-def encode_abi(
+@functools.lru_cache(2 ** 16)
+def _encode_abi(
     web3: "Web3", abi: ABIFunction, arguments: Sequence[Any], data: Optional[HexStr] = None
 ) -> HexStr:
+    abi = abi_element_deserializer(abi)
+
     argument_types = get_abi_input_types(abi)
 
     if not check_if_arguments_can_be_encoded(abi, web3.codec, arguments, {}):
@@ -199,6 +204,12 @@ def encode_abi(
         return to_hex(HexBytes(data) + encoded_arguments)
     else:
         return encode_hex(encoded_arguments)
+
+
+def encode_abi(
+    web3: "Web3", abi: ABIFunction, arguments: Sequence[Any], data: Optional[HexStr] = None
+) -> HexStr:
+    return _encode_abi(web3, abi_element_serializer(abi), arguments, data=data)
 
 
 def prepare_transaction(

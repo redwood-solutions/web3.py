@@ -78,6 +78,7 @@ from web3.exceptions import (
 )
 from web3.types import (
     ABI,
+    ABIElement,
     ABIEvent,
     ABIEventParams,
     ABIFunction,
@@ -973,3 +974,52 @@ def build_strict_registry() -> ABIRegistry:
         label='string',
     )
     return registry
+
+
+def abi_element_params_serializer(params: Sequence[ABIFunctionParams]) -> Tuple[Any, ...]:
+    serialized_params = []
+    for param in params:
+        serialized_param = dict(param)
+
+        # TODO: is not None is important, comment
+        if (components := serialized_param.get("components")) is not None:
+            serialized_param["components"] = abi_element_params_serializer(components)
+
+        serialized_params.append(tuple(serialized_param.items()))
+    return tuple(serialized_params)
+
+
+def abi_element_serializer(abi_element: ABIElement) -> Tuple[Any, ...]:
+    serialized_element = dict(abi_element)
+
+    if (inputs := serialized_element.get("inputs")) is not None:
+        serialized_element["inputs"] = abi_element_params_serializer(inputs)
+
+    if (outputs := serialized_element.get("outputs")) is not None:
+        serialized_element["outputs"] = abi_element_params_serializer(outputs)
+
+    return tuple(serialized_element.items())
+
+
+def abi_element_params_deserializer(params: Tuple[Any, ...]) -> Sequence[ABIFunctionParams]:
+    deserialized_params = []
+    for param in params:
+        deserialized_param = dict(param)
+
+        if (components := deserialized_param.get("components")) is not None:
+            deserialized_param["components"] = abi_element_params_deserializer(components)
+
+        deserialized_params.append(deserialized_param)
+    return deserialized_params
+
+
+def abi_element_deserializer(abi_element: Tuple[Any, ...]) -> ABIElement:
+    deserialized_element = dict(abi_element)
+
+    if (inputs := deserialized_element.get("inputs")) is not None:
+        deserialized_element["inputs"] = abi_element_params_deserializer(inputs)
+
+    if (outputs := deserialized_element.get("outputs")) is not None:
+        deserialized_element["outputs"] = abi_element_params_deserializer(outputs)
+
+    return deserialized_element
